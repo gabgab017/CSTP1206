@@ -22,13 +22,20 @@ const movieTileTemplate = ({ title, release_date: releaseDate, overview: descrip
   `;
 };
 
-// fetch data from the API and update the HTML with the movie data
+
 const fetchMovies = (url) => {
   console.log('Fetching movies from URL:', url);
-  fetch(url)
-    .then(response => response.json())
+  Promise.all([
+    fetch(url),
+    fetch(`https://api.themoviedb.org/3/genre/movie/list?api_key=${apiKey}`)
+  ])
+    .then(responses => Promise.all(responses.map(response => response.json())))
     .then(data => {
-      const movies = data.results;
+      const movies = data[0].results;
+      const genres = data[1].genres.reduce((map, genre) => {
+        map[genre.id] = genre.name;
+        return map;
+      }, {});
 
       // clear the previous movie tiles
       movieContainer.innerHTML = '';
@@ -37,7 +44,16 @@ const fetchMovies = (url) => {
         // create a new movie tile and fill in the data
         const movieTile = document.createElement('div');
         movieTile.classList.add('movie-tile');
-        movieTile.innerHTML = movieTileTemplate(movie);
+
+        const genreNames = movie.genre_ids.map(id => genres[id]);
+
+        movieTile.innerHTML = movieTileTemplate({
+          title: movie.title,
+          release_date: movie.release_date,
+          overview: movie.overview,
+          poster_path: movie.poster_path,
+          genre_ids: genreNames
+        });
 
         // add the movie tile to the container
         movieContainer.appendChild(movieTile);
